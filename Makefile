@@ -1,14 +1,34 @@
 CC=gcc
 CFLAGS=-ggdb -Wall
-LFLAGS=-lpthread
-FILE=
+LDFLAGS=-lpthread
+
 SRC_DIR=src
 OUT_DIR=build
 
-all:
-	mkdir -p $(OUT_DIR)
-	$(CC) $(CFLAGS) -o $(OUT_DIR)/taxi_server $(SRC_DIR)/common.c $(SRC_DIR)/taxi_server.c $(LFLAGS)
+SOURCES=$(wildcard $(SRC_DIR)/*.c)
+OBJECTS=$(patsubst $(SRC_DIR)/%.c, $(OUT_DIR)/%.o, $(SOURCES))
+EXECUTABLE=taxi_server
 
-.PHONY: clean
+ARCHIVE_NAME=chudym
+
+.PHONY: all dirs clean archive
+
+all: dirs $(SOURCES) $(EXECUTABLE)
+
+$(EXECUTABLE): $(OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(OUT_DIR)/$@ $(OBJECTS)
+
+$(OUT_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -c $< -o $@
+
+dirs:
+	mkdir -p $(OUT_DIR)
+
 clean:
 	rm -rf $(OUT_DIR)/*
+
+archive:
+	mkdir -p $(ARCHIVE_NAME)
+	cp -r $(SRC_DIR) Makefile $(ARCHIVE_NAME)
+	tar czfv $(ARCHIVE_NAME).tar.gz $(ARCHIVE_NAME)
+	rm -rf $(ARCHIVE_NAME)
