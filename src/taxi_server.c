@@ -1,5 +1,6 @@
 #define DEBUG
 #include "utils.h"
+#include "common.h"
 
 void usage(char *name) {
     fprintf(stderr, "USAGE: %s port \n", name);
@@ -7,7 +8,6 @@ void usage(char *name) {
 
 void server_work(int socket_fd) {
     while(1) {
-        
     }
 }
 
@@ -33,7 +33,6 @@ int main(int argc, char **argv) {
 	socket_fd = bind_inet_socket(port, SOCK_STREAM);
     LOG_DEBUG("Started listening on port %d", port);
     server_work(socket_fd);
-    
     safe_close(socket_fd);
     return EXIT_SUCCESS;
 }

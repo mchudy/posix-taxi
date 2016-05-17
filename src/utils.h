@@ -10,19 +10,25 @@
 #include <netinet/in.h>
 #include <string.h>
 
-#define ERR(source) (fprintf(stderr,"%s:%d\n",__FILE__,__LINE__),\
-        perror(source),kill(0,SIGKILL),\
-        exit(EXIT_FAILURE))
-
-/* Logging */
 #ifdef DEBUG
-#define LOG_DEBUG(message, arg...) do { \
-    fprintf(stderr, "[%s] %s:%d: " message "\n", "DEBUG", __FUNCTION__,__LINE__, ##arg); \
+#define LOG_DEBUG(message, args...) do { \
+    fprintf(stderr, "[%s] %s:%d: " message "\n", "DEBUG", __FUNCTION__,__LINE__, ##args); \
     fflush(stderr); \
 } while (0)
 #else
 #define LOG_DEBUG(message) do { } while(0)
 #endif
+
+#define LOG_ERROR(message) do { \
+    fprintf(stderr, "[%s] %s:%d: ", "ERROR", __FUNCTION__,__LINE__); \
+    perror(message); \
+} while (0)
+
+#define FORCE_EXIT(source) do { \
+    LOG_ERROR(source); \
+    kill(0, SIGKILL); \
+    exit(EXIT_FAILURE); \
+} while (0)
 
 #define MAX_PORT 65535
 #define BACKLOG 3

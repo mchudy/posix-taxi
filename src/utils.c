@@ -7,25 +7,27 @@ int is_valid_port(uint16_t port) {
 int safe_open(char* filename, int flags) {
     int fd;
     if ((fd = TEMP_FAILURE_RETRY(open(filename, flags))) == -1)
-        ERR("open");
+        FORCE_EXIT("open");
     return fd;
 }
 
 void safe_close(int fd) {
     if (TEMP_FAILURE_RETRY(close(fd)) == -1)
-        ERR("Cannot close");
+        FORCE_EXIT("Cannot close");
 }
 
 void safe_fflush(FILE* stream) {
     if (TEMP_FAILURE_RETRY(fflush(stream)) == EOF) {
-        ERR("fflush");
+        FORCE_EXIT("fflush");
     }
 }
 
 int make_socket(int domain, int type) {
 	int sock;
 	sock = socket(domain,type,0);
-	if(sock < 0) ERR("socket");
+	if(sock < 0) {
+        FORCE_EXIT("socket");
+    }
 	return sock;
 }
 
@@ -37,9 +39,9 @@ int bind_inet_socket(uint16_t port, int type) {
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	if (setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR,&t, sizeof(t))) ERR("setsockopt");
-	if(bind(socketfd,(struct sockaddr*) &addr,sizeof(addr)) < 0)  ERR("bind");
+	if (setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR,&t, sizeof(t))) FORCE_EXIT("setsockopt");
+	if(bind(socketfd,(struct sockaddr*) &addr,sizeof(addr)) < 0)  FORCE_EXIT("bind");
 	if(SOCK_STREAM==type)
-		if(listen(socketfd, BACKLOG) < 0) ERR("listen");
+		if(listen(socketfd, BACKLOG) < 0) FORCE_EXIT("listen");
 	return socketfd;
 }

@@ -32,3 +32,5 @@ archive:
 	cp -r $(SRC_DIR) Makefile $(ARCHIVE_NAME)
 	tar czfv $(ARCHIVE_NAME).tar.gz $(ARCHIVE_NAME)
 	rm -rf $(ARCHIVE_NAME)
+    
+.INTERMEDIATE: $(OBJECTS)
