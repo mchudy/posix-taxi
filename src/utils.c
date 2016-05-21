@@ -45,3 +45,51 @@ int bind_inet_socket(uint16_t port, int type) {
 		if(listen(socketfd, BACKLOG) < 0) FORCE_EXIT("listen");
 	return socketfd;
 }
+
+
+int accept_client(int socket_fd) {
+	int clientfd;
+	do {
+		clientfd = TEMP_FAILURE_RETRY(accept(socket_fd, NULL, NULL));
+	} while (clientfd == -1 && (EAGAIN == errno || EWOULDBLOCK == errno));
+	if (clientfd == -1)
+		FORCE_EXIT("accept");
+	return clientfd;
+}
+
+ssize_t bulk_read(int fd, char *buf, size_t count) {
+	int c;
+	size_t len = 0;
+	do {
+		c = TEMP_FAILURE_RETRY(read(fd,buf,count));
+		if(c < 0) return c;
+		if (0 == c) return len;
+		buf += c;
+		len += c;
+		count -= c;
+	} while(count > 0);
+	return len ;
+}
+
+ssize_t bulk_write(int fd, char *buf, size_t count) {
+	int c;
+	size_t len = 0;
+	do {
+		c = TEMP_FAILURE_RETRY(write(fd, buf, count));
+		if(c < 0) return c;
+		buf += c;
+		len += c;
+		count -= c;
+	} while(count > 0);
+	return len ;
+}
+
+void msleep(time_t seconds, long nanoseconds) {
+    struct timespec tt, t;
+    t.tv_sec = seconds; 
+    t.tv_nsec = nanoseconds;
+    for (tt=t; nanosleep(&tt,&tt); ) {
+        if (EINTR != errno) 
+            FORCE_EXIT("nanosleep");
+    }
+}

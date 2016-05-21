@@ -1,13 +1,45 @@
 #define DEBUG
 #include "utils.h"
 #include "common.h"
+#include "map.h"
+
+#define BUFFER_SIZE 100
 
 void usage(char *name) {
     fprintf(stderr, "USAGE: %s port \n", name);
 }
 
-void server_work(int socket_fd) {
+void* handle_client(void *data) {
+    int socket_fd = (int)data;
+    pthread_t tid = pthread_self();
+    LOG_DEBUG("[TID=%ld] New client connected", tid);
+    int status;
+    char buf[BUFFER_SIZE] = "map\n";
     while(1) {
+        msleep(TAXI_STREET_TIME, 0);
+        LOG_DEBUG("[TID=%ld] Sending map", tid);
+        if(bulk_write(socket_fd, buf, BUFFER_SIZE) < 0){
+			FORCE_EXIT("write");
+		}
+    }
+    return 0;
+}
+
+void server_work(int server_socket) {
+    int client_socket;
+    while(1) {
+        client_socket = accept_client(server_socket);
+        if(client_socket < 0) {
+            FORCE_EXIT("accept");
+        }
+        pthread_t client_tid;
+        pthread_attr_t attr;
+        if(pthread_attr_init(&attr)!=0)
+            LOG_ERROR("pthread_attr_init");
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        if(pthread_create(&client_tid, &attr, handle_client, (void*)client_socket) != 0)
+            LOG_ERROR("pthread_create");
+        pthread_attr_destroy(&attr);
     }
 }
 

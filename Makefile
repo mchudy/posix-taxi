@@ -16,10 +16,10 @@ ARCHIVE_NAME=chudym
 all: dirs $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(OUT_DIR)/$@ $(OBJECTS)
+	$(CC) $(CFLAGS) -o $(OUT_DIR)/$@ $(OBJECTS) $(LDFLAGS)
 
 $(OUT_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ $(LDFLAGS)
 
 dirs:
 	mkdir -p $(OUT_DIR)

@@ -1,3 +1,5 @@
+#define TAXI_STREET_TIME 2
+
 typedef struct position {
     int row;
     int column;
