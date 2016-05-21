@@ -93,3 +93,11 @@ void msleep(time_t seconds, long nanoseconds) {
             FORCE_EXIT("nanosleep");
     }
 }
+
+void* safe_malloc (size_t size) {
+    register void *value = malloc (size);
+    if (value == NULL){
+        FORCE_EXIT("malloc");
+    }
+    return value;
+}

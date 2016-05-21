@@ -1,9 +1,7 @@
 #define DEBUG
-#include "utils.h"
-#include "common.h"
 #include "map.h"
 
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 5000
 
 void usage(char *name) {
     fprintf(stderr, "USAGE: %s port \n", name);
@@ -13,10 +11,15 @@ void* handle_client(void *data) {
     int socket_fd = (int)data;
     pthread_t tid = pthread_self();
     LOG_DEBUG("[TID=%ld] New client connected", tid);
-    int status;
+    int taxi_id = taxi_add();
+    if(taxi_id < 0) {
+        LOG_DEBUG("[TID=%ld] Not enough space on the map", tid);
+    }
     char buf[BUFFER_SIZE] = "map\n";
     while(1) {
         msleep(TAXI_STREET_TIME, 0);
+        strcpy(buf, map_generate());
+        LOG_DEBUG("%d", strlen(map_generate()));
         LOG_DEBUG("[TID=%ld] Sending map", tid);
         if(bulk_write(socket_fd, buf, BUFFER_SIZE) < 0){
 			FORCE_EXIT("write");
