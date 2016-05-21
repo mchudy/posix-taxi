@@ -1,3 +1,6 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <stdio.h>
@@ -52,3 +55,5 @@ ssize_t bulk_write(int fd, char *buf, size_t count);
 
 void msleep(time_t seconds, long nanoseconds);
 void* safe_malloc (size_t size);
+
+#endif

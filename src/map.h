@@ -1,3 +1,6 @@
+#ifndef MAP_H
+#define MAP_H
+
 #include <stdlib.h>
 #include "common.h"
 #include "utils.h"
@@ -11,3 +14,5 @@ char* map_generate();
 void map_set_char(char* map, char c, int row, int column);
 void map_draw_boundaries(char* map);
 void map_clean(char* map);
+
+#endif
