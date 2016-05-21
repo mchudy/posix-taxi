@@ -1,7 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +12,15 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <pthread.h>
+
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(expression) \
+  (                                                                           \
+    ({ long int __result;                                                     \
+       do __result = (long int) (expression);                                 \
+       while (__result == -1L && errno == EINTR);                             \
+       __result; }))
+#endif
 
 #ifdef DEBUG
 #define LOG_DEBUG(message, args...) do { \
