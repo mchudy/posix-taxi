@@ -4,6 +4,7 @@
 #define TAXI_STREET_TIME 2
 #define STREETS_COUNT 10
 #define ALLEYS_COUNT 10
+#define MAX_TAXIS_PER_CROSSING 5
 
 typedef struct position {
     int row;
@@ -23,7 +24,6 @@ typedef struct taxi {
     int money;
     direction current_direction;
     direction next_direction;
-    //struct position position;
 } taxi;
 
 typedef struct order {
@@ -34,7 +34,7 @@ typedef struct order {
 } order;
 
 typedef struct city {
-    taxi taxis[STREETS_COUNT][ALLEYS_COUNT];
+    taxi taxis[STREETS_COUNT][ALLEYS_COUNT][MAX_TAXIS_PER_CROSSING];
 } city;
 
 #endif

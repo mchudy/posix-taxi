@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-ggdb -Wall
-LDFLAGS=-lpthread
+LDFLAGS=-lpthread -lm
 
 SRC_DIR=src
 OUT_DIR=build

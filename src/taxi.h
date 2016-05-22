@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "common.h"
 
-int taxi_add();
+int taxi_create();
 void taxi_move(taxi taxi);
 
 #endif

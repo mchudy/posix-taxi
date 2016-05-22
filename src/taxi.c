@@ -1,6 +1,6 @@
 #include "taxi.h"
 
-int taxi_add() {
+int taxi_create() {
     return 0;
 }
 
