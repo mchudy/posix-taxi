@@ -37,11 +37,11 @@ void server_work(int server_socket) {
         }
         pthread_t client_tid;
         pthread_attr_t attr;
-        if(pthread_attr_init(&attr)!=0)
-            LOG_ERROR("pthread_attr_init");
+        if(pthread_attr_init(&attr)!=0) 
+            LOG_ERROR("pthread_attr_init"); //TODO
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         if(pthread_create(&client_tid, &attr, handle_client, (void*)client_socket) != 0)
-            LOG_ERROR("pthread_create");
+            LOG_ERROR("pthread_create"); //TODO
         pthread_attr_destroy(&attr);
     }
 }
@@ -60,12 +60,13 @@ int parse_arguments(char **argv, int argc, uint16_t *port) {
 int main(int argc, char **argv) {
     int socket_fd;
     uint16_t port;
+    
     if(!parse_arguments(argv, argc, &port)) {
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
-	socket_fd = bind_inet_socket(port, SOCK_STREAM);
+    socket_fd = bind_inet_socket(port, SOCK_STREAM);
     LOG_DEBUG("Started listening on port %d", port);
     server_work(socket_fd);
     safe_close(socket_fd);
