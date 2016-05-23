@@ -7,8 +7,8 @@
 #define MAX_TAXIS_PER_CROSSING 5
 
 typedef struct position {
-    int row;
-    int column;
+    int x;
+    int y;
 } position;
 
 typedef enum direction {

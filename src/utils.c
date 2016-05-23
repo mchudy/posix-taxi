@@ -22,6 +22,13 @@ void safe_fflush(FILE* stream) {
     }
 }
 
+void set_nonblock(int fd) {
+    int new_flags = fcntl(fd, F_GETFL) | O_NONBLOCK;
+	if(fcntl(fd, F_SETFL, new_flags) == -1) {
+        FORCE_EXIT("fcntl");
+    }
+}
+
 int make_socket(int domain, int type) {
 	int sock;
 	sock = socket(domain,type,0);
@@ -48,13 +55,15 @@ int bind_inet_socket(uint16_t port, int type) {
 
 
 int accept_client(int socket_fd) {
-	int clientfd;
-	do {
-		clientfd = TEMP_FAILURE_RETRY(accept(socket_fd, NULL, NULL));
-	} while (clientfd == -1 && (EAGAIN == errno || EWOULDBLOCK == errno));
-	if (clientfd == -1)
-		FORCE_EXIT("accept");
-	return clientfd;
+	int client_fd;
+	if ((client_fd = TEMP_FAILURE_RETRY(accept(socket_fd, NULL, NULL))) < 0)
+	{
+		if (EAGAIN == errno || EWOULDBLOCK == errno) {
+			return -1;
+        }
+        FORCE_EXIT("accept");
+	}
+	return client_fd;
 }
 
 ssize_t bulk_read(int fd, char *buf, size_t count) {
@@ -100,4 +109,28 @@ void* safe_malloc (size_t size) {
         FORCE_EXIT("malloc");
     }
     return value;
+}
+
+
+void set_handler(void (*f)(int), int signo) {
+	struct sigaction act;
+	memset(&act, 0, sizeof(struct sigaction));
+	act.sa_handler = f;
+	if (-1 == sigaction(signo, &act, NULL)) {
+		FORCE_EXIT("sigaction");
+    }
+}
+
+pthread_t create_detached_thread(void* data, void*(*handler)(void*)) {
+    pthread_t client_tid;
+    pthread_attr_t attr;
+    if(pthread_attr_init(&attr) != 0) {
+        FORCE_EXIT("pthread_attr_init");
+    }
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if(pthread_create(&client_tid, &attr, handler, data) != 0) {
+        FORCE_EXIT("pthread_create");
+    }
+    pthread_attr_destroy(&attr);
+    return client_tid;
 }
