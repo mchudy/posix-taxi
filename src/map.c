@@ -1,11 +1,11 @@
 #include "map.h"
  
  //TODO synchronize
-char* map_generate(taxi **taxis) {
+char* map_generate(taxi **taxis, int current_taxi_id) {
     char *map = (char*) safe_malloc(ROWS_COUNT * ROW_LENGTH);
     map_clean(map);
     map_draw_boundaries(map);
-    map_draw_taxis(map, taxis);
+    map_draw_taxis(map, taxis, current_taxi_id);
     strcpy(map + ((ROWS_COUNT - 1) * ROW_LENGTH), "100 zl\n");
     return map;
 }
@@ -49,17 +49,38 @@ void map_clean(char* map) {
     }
 }
 
-void map_draw_taxis(char *map, taxi **taxis) {
+void map_draw_taxis(char *map, taxi **taxis, int current_taxi_id) {
     int i, j;
     for(i = 0; i < STREETS_COUNT; i++) {
         for (j = 0; j < ALLEYS_COUNT; j++) {
-            if(taxis[i * ALLEYS_COUNT + j] != NULL) {
-                map_set_char(map, 'T', 1 + i * 4, j * 10 + 2);
+            taxi *t = taxis[i * ALLEYS_COUNT + j];
+            if(t != NULL) {
+                char taxi_char = t->id == current_taxi_id ? '#' : 'T';
+                map_set_char(map, taxi_char, 1 + i * 4, j * 10 + 2);
+                map_set_char(map, map_get_direction_char(t->current_direction), 
+                             1 + i * 4, j * 10 + 3);
             }
         }
     }
 }
 
-void map_draw_order() {
+char map_get_direction_char(direction dir) {
+    switch(dir) {
+        case LEFT:
+            return '<';
+            break;
+        case RIGHT:
+            return '>';
+            break;
+        case UP:
+            return '^';
+            break;
+        case DOWN:
+        default:
+            return 'V';
+    }
+}
+
+void map_draw_orders() {
     
 }

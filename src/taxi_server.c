@@ -25,7 +25,7 @@ void sigint_handler(int sig) {
 
 void send_map(thread_data *data) {
     char *map;
-    map = map_generate(data->taxis);
+    map = map_generate(data->taxis, data->taxi->id);
     pthread_t tid = pthread_self();
     LOG_DEBUG("[TID=%ld] Sending map", tid);
     if(bulk_write(data->socket_fd, map, strlen(map)) < strlen(map)) {
