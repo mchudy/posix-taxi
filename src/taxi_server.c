@@ -25,7 +25,7 @@ void sigint_handler(int sig) {
 
 void send_map(thread_data *data) {
     char *map;
-    map = map_generate(data->taxis, data->taxi->id);
+    map = map_generate(data->taxis, data->taxi, data->taxis_mutex);
     pthread_t tid = pthread_self();
     LOG_DEBUG("[TID=%ld] Sending map", tid);
     if(bulk_write(data->socket_fd, map, strlen(map)) < strlen(map)) {
@@ -59,28 +59,29 @@ void* handle_client(void *data) {
     
     while(work) {
         rfds = base_rfds;
-        msleep(TAXI_STREET_TIME, 0);
+        taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
         send_map(tdata);
-        if (select(socket_fd + 1, &rfds, NULL, NULL, NULL) > 0) {
-            int n = read(socket_fd, buf, BUFFER_SIZE);
-            if (n < 0) {
-                FORCE_EXIT("read");
-            } else if (n == 0) { // client disconnected
-                //taxi_remove();
-                break;
-            } else {
-                buf[n] = '\0';
-                LOG_DEBUG("GOT %d bytes: %s", n, buf);
-                direction dir = extract_direction(buf, n);
-                if(dir != -1) {
-                    taxi_change_direction(tdata->taxi, extract_direction(buf, n));
-                    LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
-                }
-            }
-		} else {
-	    	if (EINTR == errno) continue;
-			FORCE_EXIT("pselect");
-		}
+        msleep(TAXI_STREET_TIME, 0);
+        //if (select(socket_fd + 1, &rfds, NULL, NULL, NULL) > 0) {
+            // int n = read(socket_fd, buf, BUFFER_SIZE);
+            // if (n < 0) {
+            //     FORCE_EXIT("read");
+            // } else if (n == 0) { // client disconnected
+            //     //taxi_remove();
+            //     break;
+            // } else {
+            //     buf[n] = '\0';
+            //     LOG_DEBUG("GOT %d bytes: %s", n, buf);
+            //     direction dir = extract_direction(buf, n);
+            //     if(dir != -1) {
+            //         taxi_change_direction(tdata->taxi, extract_direction(buf, n));
+            //         LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
+            //     }
+            // }
+		//} else {
+	    	//if (EINTR == errno) continue;
+			//FORCE_EXIT("pselect");
+		//}
     }
     safe_close(socket_fd);
     free(tdata->taxi);
@@ -103,7 +104,7 @@ void server_work(int server_socket) {
     while(work) {
         client_socket = accept_client(server_socket);
         if(client_socket < 0) continue;
-        taxi *new_taxi = taxi_create(current_taxi_id, &taxis[0][0]);
+        taxi *new_taxi = taxi_create(current_taxi_id, &taxis[0][0], &taxis_mutex);
         if(new_taxi == NULL) {
             LOG_DEBUG("Not enough space on the map");
             safe_close(client_socket);

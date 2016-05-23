@@ -1,12 +1,17 @@
 #include "map.h"
  
- //TODO synchronize
-char* map_generate(taxi **taxis, int current_taxi_id) {
+char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex) {
     char *map = (char*) safe_malloc(ROWS_COUNT * ROW_LENGTH);
     map_clean(map);
     map_draw_boundaries(map);
-    map_draw_taxis(map, taxis, current_taxi_id);
-    strcpy(map + ((ROWS_COUNT - 1) * ROW_LENGTH), "100 zl\n");
+    if(pthread_mutex_lock(mutex) != 0) {
+        FORCE_EXIT("pthread_mutex_lock");
+    }
+    map_draw_taxis(map, taxis, current_taxi->id);
+    sprintf(map + (ROWS_COUNT - 1) * ROW_LENGTH, "%d zl\n", current_taxi->money);
+    if(pthread_mutex_unlock(mutex) != 0) {
+        FORCE_EXIT("pthread_mutex_unlock");
+    }
     return map;
 }
  

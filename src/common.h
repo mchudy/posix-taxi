@@ -13,8 +13,8 @@ typedef struct position {
 
 typedef enum direction {
     LEFT,
-    RIGHT,
     UP,
+    RIGHT,
     DOWN
 } direction;
 
@@ -24,6 +24,7 @@ typedef struct taxi {
     int money;
     direction current_direction;
     direction next_direction;
+    position position;
 } taxi;
 
 typedef struct order {

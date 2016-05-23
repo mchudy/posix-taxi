@@ -9,7 +9,7 @@
 #define ROWS_COUNT (4 * STREETS_COUNT)
 #define ALLEYS_DISTANCE 6
 
-char* map_generate(taxi **taxis, int current_taxi_id);
+char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex);
 
 /* Helper functions */
 void map_set_char(char* map, char c, int row, int column);

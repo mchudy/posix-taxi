@@ -9,12 +9,15 @@
 #define ORDER_FINISHED_MONEY 20
 #define MIN_START_DISTANCE 3
 
-taxi* taxi_create(int id, taxi **taxis);
-void taxi_move(taxi taxi);
+taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex);
+void taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex);
 void taxi_change_direction(taxi *taxi, direction dir);
+
 int taxi_get_available_positions(taxi **taxis,
                                 position *available);
 taxi* taxi_get(taxi **taxis, int x, int y);
 int taxi_is_position_available(taxi **taxis, int x, int y);
+
+direction get_random_direction(position pos, unsigned *seed);
 
 #endif
