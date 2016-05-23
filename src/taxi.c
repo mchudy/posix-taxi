@@ -33,17 +33,46 @@ void taxi_remove(taxi *t) {
     free(t);
 }
 
+void make_random_turn(taxi *t) {
+    unsigned seed = time(NULL);
+    int n = rand_r(&seed) % 2;
+    t->next_direction = (n == 0 ? LEFT : RIGHT);
+    LOG_DEBUG("Random dir %d", t->next_direction);
+}
+
 void handle_city_edges(taxi *t) {
-    if(t->next_direction == -1){
-        //TODO: add randomness
-        if(t->current_direction == LEFT && t->position.y == 0) {
+    if(t->next_direction != -1) return;
+    if(t->current_direction == LEFT && t->position.y == 0) {
+        if(t->position.x == 0) {
             t->next_direction = LEFT;
-        } else if (t->current_direction == RIGHT && t->position.y == ALLEYS_COUNT - 1) {
+        } else if (t->position.x == STREETS_COUNT - 1) {
+            t->next_direction = RIGHT;
+        } else {
+            make_random_turn(t);
+        }
+    } else if (t->current_direction == RIGHT && t->position.y == ALLEYS_COUNT - 1) {
+        if(t->position.x == 0) {
+            t->next_direction = RIGHT;
+        } else if (t->position.x == STREETS_COUNT - 1) {
             t->next_direction = LEFT;
-        } else if (t->current_direction == UP && t->position.x == 0) {
+        } else {
+            make_random_turn(t);
+        }
+    } else if (t->current_direction == UP && t->position.x == 0) {
+        if(t->position.y == 0) {
+            t->next_direction = RIGHT;
+        } else if (t->position.y == ALLEYS_COUNT - 1) {
             t->next_direction = LEFT;
-        } else if (t->current_direction == DOWN && t->position.x == STREETS_COUNT - 1) {
+        } else {
+            make_random_turn(t);
+        }
+    } else if (t->current_direction == DOWN && t->position.x == STREETS_COUNT - 1) {
+        if(t->position.y == 0) {
             t->next_direction = LEFT;
+        } else if (t->position.y == ALLEYS_COUNT - 1) {
+            t->next_direction = RIGHT;
+        } else {
+            make_random_turn(t);
         }
     }
 }
@@ -75,10 +104,10 @@ void taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
             t->position.x -= 1;
             break;
         case DOWN:
-            LOG_DEBUG("GOING DONW");
             t->position.x += 1;
             break;
     }
+    LOG_DEBUG("new position (%d,%d)", t->position.x, t->position.y);
     taxis[t->position.x * ALLEYS_COUNT + t->position.y] = t;
     t->next_direction = -1;
     if(pthread_mutex_unlock(mutex) != 0) {
