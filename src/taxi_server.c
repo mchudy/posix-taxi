@@ -7,7 +7,10 @@
 
 typedef struct thread_data {
     int socket_fd;
+    taxi *taxi;
     taxi **taxis;
+    /* Mutex for synchronizing taxis' moves */
+    pthread_mutex_t *taxis_mutex;
 } thread_data;
 
 volatile sig_atomic_t work = 1;
@@ -22,7 +25,7 @@ void sigint_handler(int sig) {
 
 void send_map(thread_data *data) {
     char *map;
-    map = map_generate();
+    map = map_generate(data->taxis);
     pthread_t tid = pthread_self();
     LOG_DEBUG("[TID=%ld] Sending map", tid);
     if(bulk_write(data->socket_fd, map, strlen(map)) < strlen(map)) {
@@ -45,23 +48,19 @@ direction extract_direction(char *s, int len) {
 
 void* handle_client(void *data) {
     thread_data *tdata = (thread_data*) data;
-    int taxi_id = taxi_create();
     int socket_fd = tdata->socket_fd;
     pthread_t tid = pthread_self();
     char buf[BUFFER_SIZE];
     LOG_DEBUG("[TID=%ld] New client connected", tid);
-    if(taxi_id < 0) {
-        LOG_DEBUG("[TID=%ld] Not enough space on the map", tid);
-        return NULL;
-    }
+    LOG_DEBUG("[TID=%ld] Taxi with id %d", tid, tdata->taxi->id);
 	fd_set base_rfds, rfds;
 	FD_ZERO(&base_rfds);
 	FD_SET(socket_fd, &base_rfds);
     
     while(work) {
         rfds = base_rfds;
-        //msleep(TAXI_STREET_TIME, 0);
-        //send_map(tdata);
+        msleep(TAXI_STREET_TIME, 0);
+        send_map(tdata);
         if (select(socket_fd + 1, &rfds, NULL, NULL, NULL) > 0) {
             int n = read(socket_fd, buf, BUFFER_SIZE);
             if (n < 0) {
@@ -71,9 +70,12 @@ void* handle_client(void *data) {
                 break;
             } else {
                 buf[n] = '\0';
-                taxi_change_direction(NULL, extract_direction(buf, n));
                 LOG_DEBUG("GOT %d bytes: %s", n, buf);
-                LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
+                direction dir = extract_direction(buf, n);
+                if(dir != -1) {
+                    taxi_change_direction(tdata->taxi, extract_direction(buf, n));
+                    LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
+                }
             }
 		} else {
 	    	if (EINTR == errno) continue;
@@ -81,19 +83,40 @@ void* handle_client(void *data) {
 		}
     }
     safe_close(socket_fd);
+    free(tdata->taxi);
     free(tdata);
     return NULL;
 }
 
 void server_work(int server_socket) {
     int client_socket;
+    int current_taxi_id = 0;
+    int i, j;
+    taxi *taxis[STREETS_COUNT][ALLEYS_COUNT];
+    for(i = 0; i < STREETS_COUNT; i++) {
+        for (j = 0; j < ALLEYS_COUNT; j++) {
+            taxis[i][j] = NULL;
+        }
+    }
+	pthread_mutex_t taxis_mutex = PTHREAD_MUTEX_INITIALIZER;
     thread_data *data;
     while(work) {
         client_socket = accept_client(server_socket);
         if(client_socket < 0) continue;
+        taxi *new_taxi = taxi_create(current_taxi_id, &taxis[0][0]);
+        if(new_taxi == NULL) {
+            LOG_DEBUG("Not enough space on the map");
+            safe_close(client_socket);
+            continue;
+        }
         data = safe_malloc(sizeof(thread_data));
         data->socket_fd = client_socket;
+        data->taxi = new_taxi;
+        data->taxis = &taxis[0][0];
+        LOG_DEBUG("%d", taxis[0][0] == NULL);
+        data->taxis_mutex = &taxis_mutex;
         create_detached_thread(data, handle_client);
+        current_taxi_id++;
     }
 }
 
@@ -115,6 +138,7 @@ int main(int argc, char **argv) {
         usage(argv[0]);
         return EXIT_FAILURE;
     }
+    set_handler(SIG_IGN, SIGPIPE);
     set_handler(sigint_handler, SIGINT);
     socket_fd = bind_inet_socket(port, SOCK_STREAM);
     set_nonblock(socket_fd);

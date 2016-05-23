@@ -1,9 +1,11 @@
 #include "map.h"
  
-char* map_generate() {
+ //TODO synchronize
+char* map_generate(taxi **taxis) {
     char *map = (char*) safe_malloc(ROWS_COUNT * ROW_LENGTH);
     map_clean(map);
     map_draw_boundaries(map);
+    map_draw_taxis(map, taxis);
     strcpy(map + ((ROWS_COUNT - 1) * ROW_LENGTH), "100 zl\n");
     return map;
 }
@@ -47,8 +49,15 @@ void map_clean(char* map) {
     }
 }
 
-void map_draw_taxi() {
-    
+void map_draw_taxis(char *map, taxi **taxis) {
+    int i, j;
+    for(i = 0; i < STREETS_COUNT; i++) {
+        for (j = 0; j < ALLEYS_COUNT; j++) {
+            if(taxis[i * ALLEYS_COUNT + j] != NULL) {
+                map_set_char(map, 'T', 1 + i * 4, j * 10 + 2);
+            }
+        }
+    }
 }
 
 void map_draw_order() {
