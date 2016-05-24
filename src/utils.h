@@ -30,7 +30,7 @@
     safe_fflush(stderr); \
 } while (0)
 #else
-#define LOG_DEBUG(message) do { } while(0)
+#define LOG_DEBUG(message, args...) do { } while(0)
 #endif
 
 #define LOG_ERROR(message) do { \
