@@ -94,7 +94,6 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
     if(t->collision) {
         t->collision = 0;
         t->money -= COLLISION_COST;
-        t->current_direction = REVERSE_DIRECTION(t->current_direction);
     } else {
         position next_position = t->position;
         handle_city_edges(t);
@@ -115,7 +114,9 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
         }
         if(taxis[next_position.x * ALLEYS_COUNT + next_position.y] != NULL) {
             LOG_DEBUG("Collision");
-            taxis[next_position.x * ALLEYS_COUNT + next_position.y]->collision = 1;
+            taxi *collision_taxi = taxis[next_position.x * ALLEYS_COUNT + next_position.y];
+            collision_taxi->collision = 1;
+            collision_taxi->current_direction  = REVERSE_DIRECTION(collision_taxi->current_direction);
             t->current_direction = REVERSE_DIRECTION(t->current_direction);
             t->money -= COLLISION_COST;
         } else {
@@ -129,7 +130,7 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
     if(pthread_mutex_unlock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
-    return 1;
+    return t->money > 0;
 }
 
 void taxi_change_direction(taxi *t, direction dir) {

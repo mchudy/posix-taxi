@@ -63,7 +63,13 @@ void* handle_client(void *data) {
     int status;
     while(work) {
         rfds = base_rfds;
-        taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
+        if(!taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex)) {
+            if(bulk_write(tdata->socket_fd, "GAME OVER\n", 10) < 10) {
+                FORCE_EXIT("write");
+            }
+            //taxi_remove()
+            break;
+        }
         send_map(tdata);
         //TODO: calculate time left
         timeout.tv_sec = TAXI_STREET_TIME;
