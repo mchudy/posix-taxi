@@ -67,7 +67,7 @@ void* handle_client(void *data) {
             if(bulk_write(tdata->socket_fd, "GAME OVER\n", 10) < 10) {
                 FORCE_EXIT("write");
             }
-            //taxi_remove()
+            taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
             break;
         }
         send_map(tdata);
@@ -82,7 +82,7 @@ void* handle_client(void *data) {
             if (n < 0) {
                 FORCE_EXIT("read");
             } else if (n == 0) { // client disconnected
-                //taxi_remove();
+                taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
                 LOG_DEBUG("Client disconnected");
                 break;
             } else {
@@ -100,7 +100,7 @@ void* handle_client(void *data) {
 		}
     }
     safe_close(socket_fd);
-    free(tdata->taxi);
+    if(!work) free(tdata->taxi);
     free(tdata);
     return NULL;
 }
@@ -163,5 +163,5 @@ int main(int argc, char **argv) {
     LOG_DEBUG("Started listening on port %d", port);
     server_work(socket_fd);
     safe_close(socket_fd);
-    return EXIT_SUCCESS;
+    pthread_exit(EXIT_SUCCESS);
 }

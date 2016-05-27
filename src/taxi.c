@@ -30,7 +30,14 @@ taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex) {
     return new_taxi;
 }
 
-void taxi_remove(taxi *t) {
+void taxi_remove(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
+    if(pthread_mutex_lock(mutex) != 0) {
+        FORCE_EXIT("pthread_mutex_lock");
+    }
+    taxis[t->position.x * ALLEYS_COUNT + t->position.y] = NULL;
+    if(pthread_mutex_unlock(mutex) != 0) {
+        FORCE_EXIT("pthread_mutex_lock");
+    }
     free(t);
 }
 
