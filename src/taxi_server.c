@@ -9,8 +9,11 @@ typedef struct thread_data {
     int socket_fd;
     taxi *taxi;
     taxi **taxis;
+    order **orders;
+    
     /* Mutex for synchronizing taxis' moves */
     pthread_mutex_t *taxis_mutex;
+    pthread_mutex_t **order_mutexes;
 } thread_data;
 
 volatile sig_atomic_t work = 1;
@@ -52,36 +55,43 @@ void* handle_client(void *data) {
     pthread_t tid = pthread_self();
     char buf[BUFFER_SIZE];
     LOG_DEBUG("[TID=%ld] New client connected", tid);
-    LOG_DEBUG("[TID=%ld] Taxi with id %d", tid, tdata->taxi->id);
+    LOG_DEBUG("[TID=%ld] New taxi with id %d", tid, tdata->taxi->id);
 	fd_set base_rfds, rfds;
 	FD_ZERO(&base_rfds);
 	FD_SET(socket_fd, &base_rfds);
-    
+    struct timespec timeout;
+    int status;
     while(work) {
         rfds = base_rfds;
         taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
         send_map(tdata);
-        msleep(TAXI_STREET_TIME, 0);
-        //if (select(socket_fd + 1, &rfds, NULL, NULL, NULL) > 0) {
-            // int n = read(socket_fd, buf, BUFFER_SIZE);
-            // if (n < 0) {
-            //     FORCE_EXIT("read");
-            // } else if (n == 0) { // client disconnected
-            //     //taxi_remove();
-            //     break;
-            // } else {
-            //     buf[n] = '\0';
-            //     LOG_DEBUG("GOT %d bytes: %s", n, buf);
-            //     direction dir = extract_direction(buf, n);
-            //     if(dir != -1) {
-            //         taxi_change_direction(tdata->taxi, extract_direction(buf, n));
-            //         LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
-            //     }
-            // }
-		//} else {
-	    	//if (EINTR == errno) continue;
-			//FORCE_EXIT("pselect");
-		//}
+        //TODO: calculate time left
+        timeout.tv_sec = TAXI_STREET_TIME;
+        timeout.tv_nsec = 0;
+        LOG_DEBUG("before select");
+        
+        status = pselect(socket_fd + 1, &rfds, NULL, NULL, &timeout, NULL);
+        if(status > 0) {
+            int n = read(socket_fd, buf, BUFFER_SIZE);
+            if (n < 0) {
+                FORCE_EXIT("read");
+            } else if (n == 0) { // client disconnected
+                //taxi_remove();
+                LOG_DEBUG("Client disconnected");
+                break;
+            } else {
+                buf[n] = '\0';
+                LOG_DEBUG("GOT %d bytes: %s", n, buf);
+                direction dir = extract_direction(buf, n);
+                if(dir != -1) {
+                    taxi_change_direction(tdata->taxi, extract_direction(buf, n));
+                    LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
+                }
+            }
+		} else if(status == -1) {
+	    	if (EINTR == errno) continue;
+			FORCE_EXIT("pselect");
+		}
     }
     safe_close(socket_fd);
     free(tdata->taxi);
@@ -94,6 +104,7 @@ void server_work(int server_socket) {
     int current_taxi_id = 0;
     int i, j;
     taxi *taxis[STREETS_COUNT][ALLEYS_COUNT];
+    order *orders[MAX_ORDERS];
     for(i = 0; i < STREETS_COUNT; i++) {
         for (j = 0; j < ALLEYS_COUNT; j++) {
             taxis[i][j] = NULL;

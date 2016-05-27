@@ -22,6 +22,7 @@ taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex) {
     new_taxi->current_direction = get_random_direction(pos, &seed);
     new_taxi->next_direction = -1;
     new_taxi->position = pos;
+    new_taxi->collision = 0;
     taxis[pos.x * ALLEYS_COUNT + pos.y] = new_taxi;
     if(pthread_mutex_unlock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
@@ -85,34 +86,50 @@ void update_direction(taxi *t) {
     }
 }
 
-void taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
-    //TODO: seperate mutex for operations only on one taxi?
+/* Returns 0 if game over, 1 otherwise */
+int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
     if(pthread_mutex_lock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
-    taxis[t->position.x * ALLEYS_COUNT + t->position.y] = NULL;
-    handle_city_edges(t);
-    update_direction(t);
-    switch(t->current_direction) {
-        case LEFT:
-            t->position.y -= 1;
-            break;
-        case RIGHT:
-            t->position.y += 1;
-            break;
-        case UP:
-            t->position.x -= 1;
-            break;
-        case DOWN:
-            t->position.x += 1;
-            break;
+    if(t->collision) {
+        t->collision = 0;
+        t->money -= COLLISION_COST;
+        t->current_direction = REVERSE_DIRECTION(t->current_direction);
+    } else {
+        position next_position = t->position;
+        handle_city_edges(t);
+        update_direction(t);
+        switch(t->current_direction) {
+            case LEFT:
+                next_position.y -= 1;
+                break;
+            case RIGHT:
+                next_position.y += 1;
+                break;
+            case UP:
+                next_position.x -= 1;
+                break;
+            case DOWN:
+                next_position.x += 1;
+                break;
+        }
+        if(taxis[next_position.x * ALLEYS_COUNT + next_position.y] != NULL) {
+            LOG_DEBUG("Collision");
+            taxis[next_position.x * ALLEYS_COUNT + next_position.y]->collision = 1;
+            t->current_direction = REVERSE_DIRECTION(t->current_direction);
+            t->money -= COLLISION_COST;
+        } else {
+            taxis[t->position.x * ALLEYS_COUNT + t->position.y] = NULL;
+            t->position = next_position;
+            LOG_DEBUG("Taxi %d move to (%d,%d)", t->id, t->position.x, t->position.y);
+            taxis[t->position.x * ALLEYS_COUNT + t->position.y] = t;
+        }
     }
-    LOG_DEBUG("new position (%d,%d)", t->position.x, t->position.y);
-    taxis[t->position.x * ALLEYS_COUNT + t->position.y] = t;
     t->next_direction = -1;
     if(pthread_mutex_unlock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
+    return 1;
 }
 
 void taxi_change_direction(taxi *t, direction dir) {

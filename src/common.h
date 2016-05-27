@@ -1,10 +1,12 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define TAXI_STREET_TIME 1
+#define TAXI_STREET_TIME 5
 #define STREETS_COUNT 10
 #define ALLEYS_COUNT 10
-#define MAX_TAXIS_PER_CROSSING 5
+#define MAX_ORDERS 5
+
+#define REVERSE_DIRECTION(dir) ((dir + 2) % 4)
 
 typedef struct position {
     int x;
@@ -22,6 +24,7 @@ typedef struct taxi {
     int id;
     int current_order_id;
     int money;
+    int collision;
     direction current_direction;
     direction next_direction;
     position position;
@@ -33,9 +36,5 @@ typedef struct order {
     position end;
     int available;
 } order;
-
-typedef struct city {
-    taxi taxis[STREETS_COUNT][ALLEYS_COUNT][MAX_TAXIS_PER_CROSSING];
-} city;
 
 #endif

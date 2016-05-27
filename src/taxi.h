@@ -10,7 +10,7 @@
 #define MIN_START_DISTANCE 3
 
 taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex);
-void taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex);
+int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex);
 void taxi_change_direction(taxi *taxi, direction dir);
 
 int taxi_get_available_positions(taxi **taxis,
