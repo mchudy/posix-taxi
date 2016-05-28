@@ -16,6 +16,12 @@ typedef struct thread_data {
     pthread_mutex_t **order_mutexes;
 } thread_data;
 
+
+typedef struct order_thread_data {
+    order **orders;
+    pthread_mutex_t **order_mutexes;
+} order_thread_data;
+
 volatile sig_atomic_t work = 1;
 
 void usage(char *name) {
@@ -106,11 +112,15 @@ void* handle_client(void *data) {
 }
 
 void* generate_orders(void* data) {
-    order **orders = (order**) data;
+    order_thread_data *tdata = (order_thread_data*) data;
+    order **orders = tdata->orders;
     int i;
     while(work) {
         LOG_DEBUG("Generating orders");
         for(i = 0; i < MAX_ORDERS; i++) {
+            if(pthread_mutex_lock(tdata->order_mutexes[i]) != 0) {
+                FORCE_EXIT("pthread_mutex_lock");
+            }
             if(orders[i] == NULL) {
                 order *new_order = safe_malloc(sizeof(order));
                 position start = {i, i};
@@ -121,9 +131,13 @@ void* generate_orders(void* data) {
                 new_order->available = 1;
                 orders[i] = new_order;
             }
+            if(pthread_mutex_unlock(tdata->order_mutexes[i]) != 0) {
+               FORCE_EXIT("pthread_mutex_lock");
+            }
         }
         msleep(10, 0);
     }
+    free(tdata);
     return NULL;
 }
 
@@ -133,15 +147,23 @@ void server_work(int server_socket) {
     int i, j;
     taxi *taxis[STREETS_COUNT][ALLEYS_COUNT];
     order *orders[MAX_ORDERS];
+    pthread_mutex_t *order_mutexes[MAX_ORDERS];
     for(i = 0; i < MAX_ORDERS; i++) {
         orders[i] = NULL;
+        order_mutexes[i] = safe_malloc(sizeof(pthread_mutex_t));
+        if(pthread_mutex_init(order_mutexes[i], NULL) != 0) {
+            FORCE_EXIT("pthread_mutex_init");   
+        }
     }
     for(i = 0; i < STREETS_COUNT; i++) {
         for (j = 0; j < ALLEYS_COUNT; j++) {
             taxis[i][j] = NULL;
         }
     }
-    create_detached_thread(&orders[0], generate_orders);
+    order_thread_data *order_data = safe_malloc(sizeof(order_thread_data));
+    order_data->orders = orders;
+    order_data->order_mutexes = &order_mutexes[0];
+    create_detached_thread(order_data, generate_orders);
 	pthread_mutex_t taxis_mutex = PTHREAD_MUTEX_INITIALIZER;
     thread_data *data;
     while(work) {
@@ -158,6 +180,7 @@ void server_work(int server_socket) {
         data->taxi = new_taxi;
         data->taxis = &taxis[0][0];
         data->orders = &orders[0];
+        data->order_mutexes = &order_mutexes[0];
         LOG_DEBUG("%d", taxis[0][0] == NULL);
         data->taxis_mutex = &taxis_mutex;
         create_detached_thread(data, handle_client);
@@ -167,6 +190,10 @@ void server_work(int server_socket) {
         if(orders[i] != NULL) {
             free(orders[i]);
         }
+        if(pthread_mutex_destroy(order_mutexes[i]) != 0) {
+            FORCE_EXIT("pthread_mutex_init");   
+        }
+        free(order_mutexes[i]);
    }
 }
 

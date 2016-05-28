@@ -145,21 +145,21 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
             // not handling any order, check if there is one available on new position
             if(t->current_order_id == -1) {
                 for(i = 0; i < MAX_ORDERS; i++) {
-                    // if(pthread_mutex_lock(order_mutexes[i]) != 0) {
-                    //     FORCE_EXIT("pthread_mutex_lock");
-                    // }
+                    if(pthread_mutex_lock(order_mutexes[i]) != 0) {
+                        FORCE_EXIT("pthread_mutex_lock");
+                    }
                     if(orders[i] != NULL && orders[i]->available && position_equal(orders[i]->start, t->position)){
                         t->current_order_id = i;
                         orders[i]->available = 0;
                         LOG_DEBUG("Taking order %d", i);
-                        // if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
-                        //     FORCE_EXIT("pthread_mutex_unlock");
-                        // }
+                        if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
+                            FORCE_EXIT("pthread_mutex_unlock");
+                        }
                         break;
                     }
-                    // if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
-                    //     FORCE_EXIT("pthread_mutex_unlock");
-                    // }
+                    if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
+                        FORCE_EXIT("pthread_mutex_unlock");
+                    }
                 }
             } else {
                 // handling order, check if endpoint has been achieved
@@ -167,15 +167,15 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
                 if(position_equal(t->position, current_order->end)) {
                     LOG_DEBUG("Finished order %d", t->current_order_id);
                     t->money += ORDER_FINISHED_MONEY;
-                    // if(pthread_mutex_lock(order_mutexes[t->current_order_id]) != 0) {
-                    //     FORCE_EXIT("pthread_mutex_lock");
-                    // }                
+                    if(pthread_mutex_lock(order_mutexes[t->current_order_id]) != 0) {
+                        FORCE_EXIT("pthread_mutex_lock");
+                    }                
                     free(current_order);
                     orders[t->current_order_id] = NULL;
+                    if(pthread_mutex_unlock(order_mutexes[t->current_order_id]) != 0) {
+                        FORCE_EXIT("pthread_mutex_unlock");
+                    }
                     t->current_order_id = -1;
-                    // if(pthread_mutex_unlock(order_mutexes[t->current_order_id]) != 0) {
-                    //     FORCE_EXIT("pthread_mutex_unlock");
-                    // }
                 }
             }
         }
