@@ -111,10 +111,41 @@ void* handle_client(void *data) {
     return NULL;
 }
 
+//TODO: thread-safe
+order* get_random_order(order **orders, int id, unsigned *seed) {
+    order *new_order = safe_malloc(sizeof(order));
+    new_order->available = 1;
+    new_order->id = id;
+    position start;
+    position end;
+    int i, repeated_start = 1;
+    while(repeated_start) {
+        repeated_start = 0;
+        start.x = rand_r(seed) % STREETS_COUNT;
+        start.y = rand_r(seed) % ALLEYS_COUNT;
+        for(i = 0; i < MAX_ORDERS; i++) {
+            if(orders[i] != NULL && orders[i]->available && position_equal(orders[i]->start, start)) {
+                repeated_start = 1;
+                continue;
+            }
+        }
+    }
+    end.x = rand_r(seed) % STREETS_COUNT;
+    end.y = rand_r(seed) % ALLEYS_COUNT;
+    while(position_equal(start, end)) {
+        end.x = rand_r(seed) % STREETS_COUNT;
+        end.y = rand_r(seed) % ALLEYS_COUNT;
+    }
+    new_order->start = start;
+    new_order->end = end;
+    return new_order;
+}
+
 void* generate_orders(void* data) {
     order_thread_data *tdata = (order_thread_data*) data;
     order **orders = tdata->orders;
     int i;
+    unsigned seed = pthread_self();
     while(work) {
         LOG_DEBUG("Generating orders");
         for(i = 0; i < MAX_ORDERS; i++) {
@@ -122,14 +153,8 @@ void* generate_orders(void* data) {
                 FORCE_EXIT("pthread_mutex_lock");
             }
             if(orders[i] == NULL) {
-                order *new_order = safe_malloc(sizeof(order));
-                position start = {i, i};
-                position end = {i + 1, i + 2};
-                new_order->id = i;
-                new_order->start = start;
-                new_order->end = end;
-                new_order->available = 1;
-                orders[i] = new_order;
+                orders[i] = get_random_order(orders, i, &seed);
+                LOG_DEBUG("Created new order (%d,%d) -> (%d, %d)", orders[i]->start.x, orders[i]->start.y, orders[i]->end.x, orders[i]->end.y);
             }
             if(pthread_mutex_unlock(tdata->order_mutexes[i]) != 0) {
                FORCE_EXIT("pthread_mutex_lock");

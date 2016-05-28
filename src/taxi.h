@@ -21,5 +21,6 @@ taxi* taxi_get(taxi **taxis, int x, int y);
 int taxi_is_position_available(taxi **taxis, int x, int y);
 
 direction get_random_direction(position pos, unsigned *seed);
+int position_equal(position p1, position p2);
 
 #endif
