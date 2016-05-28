@@ -2,9 +2,8 @@
 #include "utils.h"
 #include "taxi.h"
 
-//TODO synchronization
 taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex) {
-    position available[100];
+    position available[STREETS_COUNT * ALLEYS_COUNT];
     if(pthread_mutex_lock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
@@ -19,6 +18,7 @@ taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex) {
     taxi *new_taxi = safe_malloc(sizeof(taxi));
     new_taxi->id = id;
     new_taxi->money = START_MONEY;
+    new_taxi->current_order_id = -1;
     new_taxi->current_direction = get_random_direction(pos, &seed);
     new_taxi->next_direction = -1;
     new_taxi->position = pos;
@@ -85,6 +85,25 @@ void handle_city_edges(taxi *t) {
     }
 }
 
+position get_next_position(position pos, direction dir) {
+    position next_position = pos;
+    switch(dir) {
+        case LEFT:
+            next_position.y -= 1;
+            break;
+        case RIGHT:
+            next_position.y += 1;
+            break;
+        case UP:
+            next_position.x -= 1;
+            break;
+        case DOWN:
+            next_position.x += 1;
+            break;
+    }
+    return next_position;
+}
+
 void update_direction(taxi *t) {
     if(t->next_direction == LEFT) {
         t->current_direction = (t->current_direction - 1) % 4;
@@ -93,8 +112,13 @@ void update_direction(taxi *t) {
     }
 }
 
+int position_equal(position p1, position p2) {
+    return p1.x == p2.x && p1.y == p2.y;
+}
+
 /* Returns 0 if game over, 1 otherwise */
-int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
+int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
+              pthread_mutex_t **order_mutexes) {
     if(pthread_mutex_lock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
@@ -102,23 +126,9 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
         t->collision = 0;
         t->money -= COLLISION_COST;
     } else {
-        position next_position = t->position;
         handle_city_edges(t);
         update_direction(t);
-        switch(t->current_direction) {
-            case LEFT:
-                next_position.y -= 1;
-                break;
-            case RIGHT:
-                next_position.y += 1;
-                break;
-            case UP:
-                next_position.x -= 1;
-                break;
-            case DOWN:
-                next_position.x += 1;
-                break;
-        }
+        position next_position = get_next_position(t->position, t->current_direction);
         if(taxis[next_position.x * ALLEYS_COUNT + next_position.y] != NULL) {
             LOG_DEBUG("Collision");
             taxi *collision_taxi = taxis[next_position.x * ALLEYS_COUNT + next_position.y];
@@ -131,6 +141,43 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
             t->position = next_position;
             LOG_DEBUG("Taxi %d move to (%d,%d)", t->id, t->position.x, t->position.y);
             taxis[t->position.x * ALLEYS_COUNT + t->position.y] = t;
+            int i;
+            // not handling any order, check if there is one available on new position
+            if(t->current_order_id == -1) {
+                for(i = 0; i < MAX_ORDERS; i++) {
+                    // if(pthread_mutex_lock(order_mutexes[i]) != 0) {
+                    //     FORCE_EXIT("pthread_mutex_lock");
+                    // }
+                    if(orders[i] != NULL && orders[i]->available && position_equal(orders[i]->start, t->position)){
+                        t->current_order_id = i;
+                        orders[i]->available = 0;
+                        LOG_DEBUG("Taking order %d", i);
+                        // if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
+                        //     FORCE_EXIT("pthread_mutex_unlock");
+                        // }
+                        break;
+                    }
+                    // if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
+                    //     FORCE_EXIT("pthread_mutex_unlock");
+                    // }
+                }
+            } else {
+                // handling order, check if endpoint has been achieved
+                order *current_order = orders[t->current_order_id];
+                if(position_equal(t->position, current_order->end)) {
+                    LOG_DEBUG("Finished order %d", t->current_order_id);
+                    t->money += ORDER_FINISHED_MONEY;
+                    // if(pthread_mutex_lock(order_mutexes[t->current_order_id]) != 0) {
+                    //     FORCE_EXIT("pthread_mutex_lock");
+                    // }                
+                    free(current_order);
+                    orders[t->current_order_id] = NULL;
+                    t->current_order_id = -1;
+                    // if(pthread_mutex_unlock(order_mutexes[t->current_order_id]) != 0) {
+                    //     FORCE_EXIT("pthread_mutex_unlock");
+                    // }
+                }
+            }
         }
     }
     t->next_direction = -1;
@@ -141,7 +188,6 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
 }
 
 void taxi_change_direction(taxi *t, direction dir) {
-    //TODO synchronization
     if(dir == LEFT) {
         if((t->current_direction == UP && t->position.y == 0) || 
            (t->current_direction == RIGHT && t->position.x == 0) || 

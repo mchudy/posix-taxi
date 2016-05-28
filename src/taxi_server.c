@@ -1,4 +1,3 @@
-#define DEBUG
 #include <ctype.h>
 #include "map.h"
 #include "taxi.h"
@@ -13,6 +12,7 @@ typedef struct thread_data {
     
     /* Mutex for synchronizing taxis' moves */
     pthread_mutex_t *taxis_mutex;
+    /* Array of mutexes for synchronizing each order */
     pthread_mutex_t **order_mutexes;
 } thread_data;
 
@@ -28,7 +28,7 @@ void sigint_handler(int sig) {
 
 void send_map(thread_data *data) {
     char *map;
-    map = map_generate(data->taxis, data->taxi, data->taxis_mutex);
+    map = map_generate(data->taxis, data->taxi, data->taxis_mutex, data->orders);
     pthread_t tid = pthread_self();
     LOG_DEBUG("[TID=%ld] Sending map", tid);
     if(bulk_write(data->socket_fd, map, strlen(map)) < strlen(map)) {
@@ -63,7 +63,7 @@ void* handle_client(void *data) {
     int status;
     while(work) {
         rfds = base_rfds;
-        if(!taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex)) {
+        if(!taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex, tdata->orders, tdata->order_mutexes)) {
             if(bulk_write(tdata->socket_fd, "GAME OVER\n", 10) < 10) {
                 FORCE_EXIT("write");
             }
@@ -90,8 +90,8 @@ void* handle_client(void *data) {
                 LOG_DEBUG("GOT %d bytes: %s", n, buf);
                 direction dir = extract_direction(buf, n);
                 if(dir != -1) {
-                    taxi_change_direction(tdata->taxi, extract_direction(buf, n));
-                    LOG_DEBUG("Changing direction to %d", extract_direction(buf, n));
+                    taxi_change_direction(tdata->taxi, dir);
+                    LOG_DEBUG("Changing direction to %d", dir);
                 }
             }
 		} else if(status == -1) {
@@ -105,17 +105,43 @@ void* handle_client(void *data) {
     return NULL;
 }
 
+void* generate_orders(void* data) {
+    order **orders = (order**) data;
+    int i;
+    while(work) {
+        LOG_DEBUG("Generating orders");
+        for(i = 0; i < MAX_ORDERS; i++) {
+            if(orders[i] == NULL) {
+                order *new_order = safe_malloc(sizeof(order));
+                position start = {i, i};
+                position end = {i + 1, i + 2};
+                new_order->id = i;
+                new_order->start = start;
+                new_order->end = end;
+                new_order->available = 1;
+                orders[i] = new_order;
+            }
+        }
+        msleep(10, 0);
+    }
+    return NULL;
+}
+
 void server_work(int server_socket) {
     int client_socket;
     int current_taxi_id = 0;
     int i, j;
     taxi *taxis[STREETS_COUNT][ALLEYS_COUNT];
     order *orders[MAX_ORDERS];
+    for(i = 0; i < MAX_ORDERS; i++) {
+        orders[i] = NULL;
+    }
     for(i = 0; i < STREETS_COUNT; i++) {
         for (j = 0; j < ALLEYS_COUNT; j++) {
             taxis[i][j] = NULL;
         }
     }
+    create_detached_thread(&orders[0], generate_orders);
 	pthread_mutex_t taxis_mutex = PTHREAD_MUTEX_INITIALIZER;
     thread_data *data;
     while(work) {
@@ -131,11 +157,17 @@ void server_work(int server_socket) {
         data->socket_fd = client_socket;
         data->taxi = new_taxi;
         data->taxis = &taxis[0][0];
+        data->orders = &orders[0];
         LOG_DEBUG("%d", taxis[0][0] == NULL);
         data->taxis_mutex = &taxis_mutex;
         create_detached_thread(data, handle_client);
         current_taxi_id++;
     }
+    for(i = 0; i < MAX_ORDERS; i++) {
+        if(orders[i] != NULL) {
+            free(orders[i]);
+        }
+   }
 }
 
 int parse_arguments(char **argv, int argc, uint16_t *port) {

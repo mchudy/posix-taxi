@@ -72,7 +72,7 @@ void* safe_malloc (size_t size);
 /* Signals */
 void set_handler(void (*f)(int), int signo);
  
- /* Threads */
- pthread_t create_detached_thread(void* data, void*(*handler)(void*));
+/* Threads */
+pthread_t create_detached_thread(void* data, void*(*handler)(void*));
  
 #endif

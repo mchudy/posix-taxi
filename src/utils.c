@@ -131,6 +131,7 @@ pthread_t create_detached_thread(void* data, void*(*handler)(void*)) {
     if(pthread_create(&client_tid, &attr, handler, data) != 0) {
         FORCE_EXIT("pthread_create");
     }
+    pthread_detach(client_tid);
     pthread_attr_destroy(&attr);
     return client_tid;
 }

@@ -1,12 +1,13 @@
 #include "map.h"
  
-char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex) {
+char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex, order **orders) {
     char *map = (char*) safe_malloc(ROWS_COUNT * ROW_LENGTH);
     map_clean(map);
     map_draw_boundaries(map);
     if(pthread_mutex_lock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
+    map_draw_orders(map, current_taxi, orders);
     map_draw_taxis(map, taxis, current_taxi->id);
     sprintf(map + (ROWS_COUNT - 1) * ROW_LENGTH, "%d zl\n", current_taxi->money);
     if(pthread_mutex_unlock(mutex) != 0) {
@@ -86,6 +87,22 @@ char map_get_direction_char(direction dir) {
     }
 }
 
-void map_draw_orders() {
-    
+void map_draw_orders(char *map, taxi *t, order **orders) {
+    char str[1];
+    if(t->current_order_id == -1) {
+        // showing all available start points
+        int i;
+        for(i = 0; i < MAX_ORDERS; i++) {
+            if(orders[i] == NULL || !orders[i]->available) continue;
+            map_set_char(map, 'A', 1 + orders[i]->start.x * 4, orders[i]->start.y * 10 + 2);
+            sprintf(str, "%d", orders[i]->id);
+            map_set_char(map, str[0], 1 + orders[i]->start.x * 4, orders[i]->start.y * 10 + 3);
+        }
+    } else {
+        // showing only end point for the current order
+        order *current_order = orders[t->current_order_id];
+        sprintf(str, "%d", current_order->id);
+        map_set_char(map, 'B', 1 + current_order->end.x * 4, current_order->end.y * 10 + 2);
+        map_set_char(map, str[0], 1 + current_order->end.x * 4, current_order->end.y * 10 + 3);
+    }
 }
