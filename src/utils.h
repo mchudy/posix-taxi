@@ -49,8 +49,6 @@
 #define MAX_PORT 65535
 #define BACKLOG 3
 
-int is_valid_port(uint16_t port);
-
 /* Files */
 int safe_open(char* filename, int flags);
 void safe_close(int fd);
@@ -58,6 +56,7 @@ void safe_fflush(FILE* stream);
 void set_nonblock(int fd);
 
 /* Sockets */
+int is_valid_port(uint16_t port);
 int make_socket(int domain, int type);
 int bind_inet_socket(uint16_t port,int type);
 int accept_client(int socket_fd);
@@ -66,13 +65,15 @@ int accept_client(int socket_fd);
 ssize_t bulk_read(int fd, char *buf, size_t count);
 ssize_t bulk_write(int fd, char *buf, size_t count);
 
-void msleep(time_t seconds, long nanoseconds);
-void* safe_malloc (size_t size);
-
 /* Signals */
 void set_handler(void (*f)(int), int signo);
  
 /* Threads */
 pthread_t create_detached_thread(void* data, void*(*handler)(void*));
- 
+
+/* Misc */
+int timespec_subtract (struct timespec *x, struct timespec *y, struct timespec *result);
+void msleep(time_t seconds, long nanoseconds);
+void* safe_malloc (size_t size);
+
 #endif

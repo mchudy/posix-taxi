@@ -65,23 +65,25 @@ void* handle_client(void *data) {
 	fd_set base_rfds, rfds;
 	FD_ZERO(&base_rfds);
 	FD_SET(socket_fd, &base_rfds);
-    struct timespec timeout;
+    struct timespec timeout = {TAXI_STREET_TIME, 0}, elapsed, current_time, new_time;
     int status;
     while(work) {
         rfds = base_rfds;
-        if(!taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex, tdata->orders, tdata->order_mutexes)) {
-            if(bulk_write(tdata->socket_fd, "GAME OVER\n", 10) < 10) {
-                FORCE_EXIT("write");
+        if(!timespec_subtract(&timeout, &elapsed, &new_time)) {
+            timeout = new_time;
+        } else {
+            timeout.tv_sec = TAXI_STREET_TIME;
+            timeout.tv_nsec = 0;
+            if(!taxi_move(tdata->taxi, tdata->taxis, tdata->taxis_mutex, tdata->orders, tdata->order_mutexes)) {
+                if(bulk_write(tdata->socket_fd, "GAME OVER\n", 10) < 10) {
+                    FORCE_EXIT("write");
+                }
+                taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
+                break;
             }
-            taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
-            break;
+            send_map(tdata);        
         }
-        send_map(tdata);
-        //TODO: calculate time left
-        timeout.tv_sec = TAXI_STREET_TIME;
-        timeout.tv_nsec = 0;
-        LOG_DEBUG("before select");
-        
+        clock_gettime(CLOCK_REALTIME, &current_time);
         status = pselect(socket_fd + 1, &rfds, NULL, NULL, &timeout, NULL);
         if(status > 0) {
             int n = read(socket_fd, buf, BUFFER_SIZE);
@@ -104,6 +106,10 @@ void* handle_client(void *data) {
 	    	if (EINTR == errno) continue;
 			FORCE_EXIT("pselect");
 		}
+        clock_gettime(CLOCK_REALTIME, &new_time);
+        timespec_subtract(&new_time, &current_time, &elapsed);
+        LOG_DEBUG("Elapsed %ld %ld", elapsed.tv_sec, elapsed.tv_nsec);
+        LOG_DEBUG("To do %ld %ld", timeout.tv_sec, timeout.tv_nsec);
     }
     safe_close(socket_fd);
     if(!work) free(tdata->taxi);
