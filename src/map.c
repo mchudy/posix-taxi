@@ -22,14 +22,17 @@ void map_set_char(char* map, char c, int row, int column) {
 
 void map_draw_boundaries(char* map) {
     int i, j, k;
+    // horizontal boundaries
     for(i = 0; i < ROW_LENGTH - 1; i++) {
         map_set_char(map, '-', 0, i);
         map_set_char(map, '-', ROWS_COUNT - 2, i);
     }
+    // vertical boundaries
     for(i = 1; i < ROWS_COUNT - 2; i++) {
         map_set_char(map, '|', i, 0);
         map_set_char(map, '|', i, ROW_LENGTH - 2);
     }
+    // places between streets
     for(i = 0; i < STREETS_COUNT - 1; i++) {
         for(j = 0; j < ALLEYS_COUNT - 1; j++) {
             map_set_char(map, '|', 3 + i * 4, j * 10 + 5);

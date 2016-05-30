@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include "map.h"
 #include "taxi.h"
+#include "order.h"
 
 #define BUFFER_SIZE 10
 
@@ -16,12 +17,6 @@ typedef struct thread_data {
     pthread_mutex_t **order_mutexes;
 } thread_data;
 
-
-typedef struct order_thread_data {
-    order **orders;
-    pthread_mutex_t **order_mutexes;
-} order_thread_data;
-
 volatile sig_atomic_t work = 1;
 
 void usage(char *name) {
@@ -30,6 +25,15 @@ void usage(char *name) {
 
 void sigint_handler(int sig) {
 	work = 0;
+}
+
+void init_taxis(taxi *taxis[STREETS_COUNT][ALLEYS_COUNT]) {
+    int i, j;
+    for(i = 0; i < STREETS_COUNT; i++) {
+        for (j = 0; j < ALLEYS_COUNT; j++) {
+            taxis[i][j] = NULL;
+        }
+    }
 }
 
 void send_map(thread_data *data) {
@@ -55,17 +59,34 @@ direction extract_direction(char *s, int len) {
     return -1;
 }
 
+int read_and_change_direction(int socket_fd, thread_data *tdata) {
+    char buf[BUFFER_SIZE];
+    int n = read(socket_fd, buf, BUFFER_SIZE);
+    if (n < 0) {
+        FORCE_EXIT("read");
+    } else if (n == 0) { // client disconnected
+        taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
+        return 0;
+    } else {
+        buf[n] = '\0';
+        LOG_DEBUG("GOT %d bytes: %s", n, buf);
+        direction dir = extract_direction(buf, n);
+        if(dir != -1) {
+            taxi_change_direction(tdata->taxi, dir);
+        }
+    }
+    return 1;
+}
+
 void* handle_client(void *data) {
     thread_data *tdata = (thread_data*) data;
     int socket_fd = tdata->socket_fd;
     pthread_t tid = pthread_self();
-    char buf[BUFFER_SIZE];
-    LOG_DEBUG("[TID=%ld] New client connected", tid);
-    LOG_DEBUG("[TID=%ld] New taxi with id %d", tid, tdata->taxi->id);
+    printf("[TID=%ld] New taxi with id %d\n", tid, tdata->taxi->id);
 	fd_set base_rfds, rfds;
 	FD_ZERO(&base_rfds);
 	FD_SET(socket_fd, &base_rfds);
-    struct timespec timeout = {TAXI_STREET_TIME, 0}, elapsed, current_time, new_time;
+    struct timespec timeout = {TAXI_STREET_TIME, 0}, elapsed = {TAXI_STREET_TIME + 1, 0}, current_time, new_time;
     int status;
     while(work) {
         rfds = base_rfds;
@@ -86,21 +107,8 @@ void* handle_client(void *data) {
         clock_gettime(CLOCK_REALTIME, &current_time);
         status = pselect(socket_fd + 1, &rfds, NULL, NULL, &timeout, NULL);
         if(status > 0) {
-            int n = read(socket_fd, buf, BUFFER_SIZE);
-            if (n < 0) {
-                FORCE_EXIT("read");
-            } else if (n == 0) { // client disconnected
-                taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
-                LOG_DEBUG("Client disconnected");
+            if(!read_and_change_direction(socket_fd, tdata)) {
                 break;
-            } else {
-                buf[n] = '\0';
-                LOG_DEBUG("GOT %d bytes: %s", n, buf);
-                direction dir = extract_direction(buf, n);
-                if(dir != -1) {
-                    taxi_change_direction(tdata->taxi, dir);
-                    LOG_DEBUG("Changing direction to %d", dir);
-                }
             }
 		} else if(status == -1) {
 	    	if (EINTR == errno) continue;
@@ -108,43 +116,11 @@ void* handle_client(void *data) {
 		}
         clock_gettime(CLOCK_REALTIME, &new_time);
         timespec_subtract(&new_time, &current_time, &elapsed);
-        LOG_DEBUG("Elapsed %ld %ld", elapsed.tv_sec, elapsed.tv_nsec);
-        LOG_DEBUG("To do %ld %ld", timeout.tv_sec, timeout.tv_nsec);
     }
     safe_close(socket_fd);
     if(!work) free(tdata->taxi);
     free(tdata);
     return NULL;
-}
-
-//TODO: thread-safe
-order* get_random_order(order **orders, int id, unsigned *seed) {
-    order *new_order = safe_malloc(sizeof(order));
-    new_order->available = 1;
-    new_order->id = id;
-    position start;
-    position end;
-    int i, repeated_start = 1;
-    while(repeated_start) {
-        repeated_start = 0;
-        start.x = rand_r(seed) % STREETS_COUNT;
-        start.y = rand_r(seed) % ALLEYS_COUNT;
-        for(i = 0; i < MAX_ORDERS; i++) {
-            if(orders[i] != NULL && orders[i]->available && position_equal(orders[i]->start, start)) {
-                repeated_start = 1;
-                continue;
-            }
-        }
-    }
-    end.x = rand_r(seed) % STREETS_COUNT;
-    end.y = rand_r(seed) % ALLEYS_COUNT;
-    while(position_equal(start, end)) {
-        end.x = rand_r(seed) % STREETS_COUNT;
-        end.y = rand_r(seed) % ALLEYS_COUNT;
-    }
-    new_order->start = start;
-    new_order->end = end;
-    return new_order;
 }
 
 void* generate_orders(void* data) {
@@ -160,13 +136,13 @@ void* generate_orders(void* data) {
             }
             if(orders[i] == NULL) {
                 orders[i] = get_random_order(orders, i, &seed);
-                LOG_DEBUG("Created new order (%d,%d) -> (%d, %d)", orders[i]->start.x, orders[i]->start.y, orders[i]->end.x, orders[i]->end.y);
+                printf("Created new order (%d,%d) -> (%d, %d)\n", orders[i]->start.x, orders[i]->start.y, orders[i]->end.x, orders[i]->end.y);
             }
             if(pthread_mutex_unlock(tdata->order_mutexes[i]) != 0) {
                FORCE_EXIT("pthread_mutex_lock");
             }
         }
-        msleep(10, 0);
+        msleep(ORDER_GENERATION_INTERVAL, 0);
     }
     free(tdata);
     return NULL;
@@ -175,34 +151,26 @@ void* generate_orders(void* data) {
 void server_work(int server_socket) {
     int client_socket;
     int current_taxi_id = 0;
-    int i, j;
+    unsigned seed = pthread_self();
+    LOG_DEBUG("%ld ME", pthread_self());
     taxi *taxis[STREETS_COUNT][ALLEYS_COUNT];
     order *orders[MAX_ORDERS];
     pthread_mutex_t *order_mutexes[MAX_ORDERS];
-    for(i = 0; i < MAX_ORDERS; i++) {
-        orders[i] = NULL;
-        order_mutexes[i] = safe_malloc(sizeof(pthread_mutex_t));
-        if(pthread_mutex_init(order_mutexes[i], NULL) != 0) {
-            FORCE_EXIT("pthread_mutex_init");   
-        }
-    }
-    for(i = 0; i < STREETS_COUNT; i++) {
-        for (j = 0; j < ALLEYS_COUNT; j++) {
-            taxis[i][j] = NULL;
-        }
-    }
+    pthread_mutex_t taxis_mutex = PTHREAD_MUTEX_INITIALIZER;
+    thread_data *data;
     order_thread_data *order_data = safe_malloc(sizeof(order_thread_data));
     order_data->orders = orders;
     order_data->order_mutexes = &order_mutexes[0];
+        
+    init_orders(orders, order_mutexes);
+    init_taxis(taxis);
     create_detached_thread(order_data, generate_orders);
-	pthread_mutex_t taxis_mutex = PTHREAD_MUTEX_INITIALIZER;
-    thread_data *data;
     while(work) {
         client_socket = accept_client(server_socket);
         if(client_socket < 0) continue;
-        taxi *new_taxi = taxi_create(current_taxi_id, &taxis[0][0], &taxis_mutex);
+        taxi *new_taxi = taxi_create(current_taxi_id, &taxis[0][0], &taxis_mutex, &seed);
         if(new_taxi == NULL) {
-            LOG_DEBUG("Not enough space on the map");
+            printf("Not enough space on the map, disconnecting client\n");
             safe_close(client_socket);
             continue;
         }
@@ -212,20 +180,11 @@ void server_work(int server_socket) {
         data->taxis = &taxis[0][0];
         data->orders = &orders[0];
         data->order_mutexes = &order_mutexes[0];
-        LOG_DEBUG("%d", taxis[0][0] == NULL);
         data->taxis_mutex = &taxis_mutex;
         create_detached_thread(data, handle_client);
         current_taxi_id++;
     }
-    for(i = 0; i < MAX_ORDERS; i++) {
-        if(orders[i] != NULL) {
-            free(orders[i]);
-        }
-        if(pthread_mutex_destroy(order_mutexes[i]) != 0) {
-            FORCE_EXIT("pthread_mutex_init");   
-        }
-        free(order_mutexes[i]);
-   }
+    cleanup_orders(orders, order_mutexes);
 }
 
 int parse_arguments(char **argv, int argc, uint16_t *port) {
@@ -250,7 +209,6 @@ int main(int argc, char **argv) {
     set_handler(sigint_handler, SIGINT);
     socket_fd = bind_inet_socket(port, SOCK_STREAM);
     set_nonblock(socket_fd);
-    LOG_DEBUG("Started listening on port %d", port);
     server_work(socket_fd);
     safe_close(socket_fd);
     pthread_exit(EXIT_SUCCESS);

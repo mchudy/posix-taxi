@@ -37,4 +37,7 @@ typedef struct order {
     int available;
 } order;
 
+int position_equal(position p1, position p2);
+direction get_random_direction(position pos, unsigned *seed);
+
 #endif

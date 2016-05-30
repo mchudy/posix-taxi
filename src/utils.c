@@ -1,9 +1,5 @@
 #include "utils.h"
 
-int is_valid_port(uint16_t port) {
-	return 0 < port && port <= MAX_PORT;
-}
-
 int safe_open(char* filename, int flags) {
     int fd;
     if ((fd = TEMP_FAILURE_RETRY(open(filename, flags))) == -1)
@@ -27,6 +23,10 @@ void set_nonblock(int fd) {
 	if(fcntl(fd, F_SETFL, new_flags) == -1) {
         FORCE_EXIT("fcntl");
     }
+}
+
+int is_valid_port(uint16_t port) {
+	return 0 < port && port <= MAX_PORT;
 }
 
 int make_socket(int domain, int type) {
@@ -93,25 +93,6 @@ ssize_t bulk_write(int fd, char *buf, size_t count) {
 	return len ;
 }
 
-void msleep(time_t seconds, long nanoseconds) {
-    struct timespec tt, t;
-    t.tv_sec = seconds; 
-    t.tv_nsec = nanoseconds;
-    for (tt=t; nanosleep(&tt,&tt); ) {
-        if (EINTR != errno) 
-            FORCE_EXIT("nanosleep");
-    }
-}
-
-void* safe_malloc (size_t size) {
-    register void *value = malloc (size);
-    if (value == NULL){
-        FORCE_EXIT("malloc");
-    }
-    return value;
-}
-
-
 void set_handler(void (*f)(int), int signo) {
 	struct sigaction act;
 	memset(&act, 0, sizeof(struct sigaction));
@@ -134,6 +115,24 @@ pthread_t create_detached_thread(void* data, void*(*handler)(void*)) {
     pthread_detach(client_tid);
     pthread_attr_destroy(&attr);
     return client_tid;
+}
+
+void msleep(time_t seconds, long nanoseconds) {
+    struct timespec tt, t;
+    t.tv_sec = seconds; 
+    t.tv_nsec = nanoseconds;
+    for (tt=t; nanosleep(&tt,&tt); ) {
+        if (EINTR != errno) 
+            FORCE_EXIT("nanosleep");
+    }
+}
+
+void* safe_malloc (size_t size) {
+    register void *value = malloc (size);
+    if (value == NULL){
+        FORCE_EXIT("malloc");
+    }
+    return value;
 }
 
 /* Returns 1 if the result is negative */
