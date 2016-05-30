@@ -16,7 +16,7 @@ taxi* taxi_create(int id, taxi **taxis, pthread_mutex_t *mutex, unsigned *seed) 
     taxi_init(new_taxi, id, pos, seed);
     taxis[pos.x * ALLEYS_COUNT + pos.y] = new_taxi;
     if(pthread_mutex_unlock(mutex) != 0) {
-        FORCE_EXIT("pthread_mutex_lock");
+        FORCE_EXIT("pthread_mutex_unlock");
     }
     return new_taxi;
 }
@@ -30,6 +30,8 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
     if(t->collision) {
         t->collision = 0;
         t->money -= COLLISION_COST;
+    } else if (t->stay) {
+        t->stay = 0;
     } else {
         taxi_handle_city_edges(t);
         taxi_update_direction(t);
@@ -57,7 +59,7 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
     }
     t->next_direction = -1;
     if(pthread_mutex_unlock(mutex) != 0) {
-        FORCE_EXIT("pthread_mutex_lock");
+        FORCE_EXIT("pthread_mutex_unlock");
     }
     return t->money > 0;
 }
@@ -85,7 +87,7 @@ void taxi_remove(taxi *t, taxi **taxis, pthread_mutex_t *mutex) {
     }
     taxis[t->position.x * ALLEYS_COUNT + t->position.y] = NULL;
     if(pthread_mutex_unlock(mutex) != 0) {
-        FORCE_EXIT("pthread_mutex_lock");
+        FORCE_EXIT("pthread_mutex_unlock");
     }
     free(t);
 }
@@ -98,6 +100,7 @@ void taxi_init(taxi *new_taxi, int id, position pos, unsigned *seed) {
     new_taxi->next_direction = -1;
     new_taxi->position = pos;
     new_taxi->collision = 0;
+    new_taxi->stay = 0;
 }
 
 void taxi_make_random_turn(taxi *t) {
@@ -178,6 +181,7 @@ void taxi_try_take_order(taxi *t, order **orders, pthread_mutex_t **order_mutexe
         }
         if(orders[i] != NULL && orders[i]->available && position_equal(orders[i]->start, t->position)){
             t->current_order_id = i;
+            t->stay = 1;
             orders[i]->available = 0;
             printf("Taxi %d taking order %d\n", t->id, i);
             if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
@@ -204,6 +208,7 @@ void taxi_try_finish_order(taxi *t, order **orders, pthread_mutex_t **order_mute
         if(pthread_mutex_unlock(order_mutexes[t->current_order_id]) != 0) {
             FORCE_EXIT("pthread_mutex_unlock");
         }
+        t->stay = 1;
         t->current_order_id = -1;
     }
 }

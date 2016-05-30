@@ -1,7 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define TAXI_STREET_TIME 10
+#define TAXI_STREET_TIME 2
 #define STREETS_COUNT 10
 #define ALLEYS_COUNT 10
 #define MAX_ORDERS 5
@@ -25,6 +25,8 @@ typedef struct taxi {
     int current_order_id;
     int money;
     int collision;
+    /* Set to non-zero value makes taxi stay for 1 move in the same place */
+    int stay; 
     direction current_direction;
     direction next_direction;
     position position;

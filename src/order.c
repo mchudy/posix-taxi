@@ -53,3 +53,33 @@ void cleanup_orders(order *orders[MAX_ORDERS], pthread_mutex_t *order_mutexes[MA
         free(order_mutexes[i]);
    }
 }
+
+void order_cancel(int id, order **orders, pthread_mutex_t **order_mutexes) {
+    if(pthread_mutex_lock(order_mutexes[id]) != 0) {
+        FORCE_EXIT("pthread_mutex_lock");
+    }
+    LOG_DEBUG("Cancelling order %d", id);
+    free(orders[id]);
+    orders[id] = NULL;
+    if(pthread_mutex_lock(order_mutexes[id]) != 0) {
+        FORCE_EXIT("pthread_mutex_lock");
+    }
+}
+
+void lock_orders(pthread_mutex_t **order_mutexes) {
+    int i;
+    for(i = 0; i < MAX_ORDERS; i++) {
+        if(pthread_mutex_lock(order_mutexes[i]) != 0) {
+            FORCE_EXIT("pthread_mutex_lock");
+        }
+    }
+}
+
+void unlock_orders(pthread_mutex_t **order_mutexes) {
+    int i;
+    for(i = 0; i < MAX_ORDERS; i++) {
+        if(pthread_mutex_unlock(order_mutexes[i]) != 0) {
+            FORCE_EXIT("pthread_mutex_unlock");
+        }
+    }
+}

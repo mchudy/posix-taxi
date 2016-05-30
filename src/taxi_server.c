@@ -38,7 +38,8 @@ void init_taxis(taxi *taxis[STREETS_COUNT][ALLEYS_COUNT]) {
 
 void send_map(thread_data *data) {
     char *map;
-    map = map_generate(data->taxis, data->taxi, data->taxis_mutex, data->orders);
+    map = map_generate(data->taxis, data->taxi, data->taxis_mutex, 
+                       data->orders, data->order_mutexes);
     pthread_t tid = pthread_self();
     LOG_DEBUG("[TID=%ld] Sending map", tid);
     if(bulk_write(data->socket_fd, map, strlen(map)) < strlen(map)) {
@@ -65,6 +66,9 @@ int read_and_change_direction(int socket_fd, thread_data *tdata) {
     if (n < 0) {
         FORCE_EXIT("read");
     } else if (n == 0) { // client disconnected
+        if(tdata->taxi->current_order_id != -1) {
+            order_cancel(tdata->taxi->current_order_id, tdata->orders, tdata->order_mutexes);
+        }
         taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
         return 0;
     } else {
@@ -104,7 +108,9 @@ void* handle_client(void *data) {
             }
             send_map(tdata);        
         }
-        clock_gettime(CLOCK_REALTIME, &current_time);
+        if(clock_gettime(CLOCK_REALTIME, &current_time) != 0) {
+            FORCE_EXIT("clock_gettime");
+        }
         status = pselect(socket_fd + 1, &rfds, NULL, NULL, &timeout, NULL);
         if(status > 0) {
             if(!read_and_change_direction(socket_fd, tdata)) {
@@ -114,7 +120,9 @@ void* handle_client(void *data) {
 	    	if (EINTR == errno) continue;
 			FORCE_EXIT("pselect");
 		}
-        clock_gettime(CLOCK_REALTIME, &new_time);
+        if(clock_gettime(CLOCK_REALTIME, &new_time) != 0){
+            FORCE_EXIT("clock_gettime");
+        }
         timespec_subtract(&new_time, &current_time, &elapsed);
     }
     safe_close(socket_fd);
@@ -130,18 +138,14 @@ void* generate_orders(void* data) {
     unsigned seed = pthread_self();
     while(work) {
         LOG_DEBUG("Generating orders");
+        lock_orders(tdata->order_mutexes);
         for(i = 0; i < MAX_ORDERS; i++) {
-            if(pthread_mutex_lock(tdata->order_mutexes[i]) != 0) {
-                FORCE_EXIT("pthread_mutex_lock");
-            }
             if(orders[i] == NULL) {
                 orders[i] = get_random_order(orders, i, &seed);
                 printf("Created new order (%d,%d) -> (%d, %d)\n", orders[i]->start.x, orders[i]->start.y, orders[i]->end.x, orders[i]->end.y);
             }
-            if(pthread_mutex_unlock(tdata->order_mutexes[i]) != 0) {
-               FORCE_EXIT("pthread_mutex_lock");
-            }
         }
+        unlock_orders(tdata->order_mutexes);
         msleep(ORDER_GENERATION_INTERVAL, 0);
     }
     free(tdata);
