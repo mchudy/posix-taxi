@@ -61,8 +61,8 @@ void order_cancel(int id, order **orders, pthread_mutex_t **order_mutexes) {
     LOG_DEBUG("Cancelling order %d", id);
     free(orders[id]);
     orders[id] = NULL;
-    if(pthread_mutex_lock(order_mutexes[id]) != 0) {
-        FORCE_EXIT("pthread_mutex_lock");
+    if(pthread_mutex_unlock(order_mutexes[id]) != 0) {
+        FORCE_EXIT("pthread_mutex_unlock");
     }
 }
 

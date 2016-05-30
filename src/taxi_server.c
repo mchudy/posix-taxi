@@ -103,6 +103,9 @@ void* handle_client(void *data) {
                 if(bulk_write(tdata->socket_fd, "GAME OVER\n", 10) < 10) {
                     FORCE_EXIT("write");
                 }
+                if(tdata->taxi->current_order_id != -1) {
+                    order_cancel(tdata->taxi->current_order_id, tdata->orders, tdata->order_mutexes);
+                }
                 taxi_remove(tdata->taxi, tdata->taxis, tdata->taxis_mutex);
                 break;
             }
