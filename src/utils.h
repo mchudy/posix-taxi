@@ -1,8 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#define DEBUG
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>

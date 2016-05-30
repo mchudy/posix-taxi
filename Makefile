@@ -3,29 +3,25 @@ CFLAGS=-ggdb -Wall
 LDFLAGS=-lpthread -lm
 
 SRC_DIR=src
-OUT_DIR=build
 
 SOURCES=$(wildcard $(SRC_DIR)/*.c)
-OBJECTS=$(patsubst $(SRC_DIR)/%.c, $(OUT_DIR)/%.o, $(SOURCES))
+OBJECTS=$(patsubst $(SRC_DIR)/%.c, %.o, $(SOURCES))
 EXECUTABLE=taxi_server
 
 ARCHIVE_NAME=chudym
 
-.PHONY: all dirs clean archive
+.PHONY: all clean archive
 
-all: dirs $(SOURCES) $(EXECUTABLE)
+all: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $(OUT_DIR)/$@ $(OBJECTS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
-$(OUT_DIR)/%.o: $(SRC_DIR)/%.c
+%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(LDFLAGS)
 
-dirs:
-	mkdir -p $(OUT_DIR)
-
 clean:
-	rm -rf $(OUT_DIR)/*
+	rm -f $(OBJECTS) $(EXECUTABLE)
 
 archive:
 	mkdir -p $(ARCHIVE_NAME)

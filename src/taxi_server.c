@@ -40,8 +40,7 @@ void send_map(thread_data *data) {
     char *map;
     map = map_generate(data->taxis, data->taxi, data->taxis_mutex, 
                        data->orders, data->order_mutexes);
-    pthread_t tid = pthread_self();
-    LOG_DEBUG("[TID=%ld] Sending map", tid);
+    LOG_DEBUG("[TID=%ld] Sending map", pthread_self());
     if(bulk_write(data->socket_fd, map, strlen(map)) < strlen(map)) {
         FORCE_EXIT("write");
     }
