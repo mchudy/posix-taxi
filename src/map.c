@@ -1,8 +1,8 @@
 #include "map.h"
 #include "order.h"
- 
+
 char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex, 
-                    order **orders, pthread_mutex_t **order_mutexes) {
+                   order **orders, pthread_mutex_t **order_mutexes) {
     char *map = (char*) safe_malloc(ROWS_COUNT * ROW_LENGTH);
     map_clean(map);
     map_draw_boundaries(map);
@@ -17,7 +17,7 @@ char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex,
     }
     return map;
 }
- 
+
 void map_set_char(char* map, char c, int row, int column) {
     map[row * ROW_LENGTH + column] = c;
 }
@@ -69,7 +69,7 @@ void map_draw_taxis(char *map, taxi **taxis, int current_taxi_id) {
                 char taxi_char = t->id == current_taxi_id ? '#' : 'T';
                 map_set_char(map, taxi_char, 1 + i * 4, j * 10 + 2);
                 map_set_char(map, map_get_direction_char(t->current_direction), 
-                             1 + i * 4, j * 10 + 3);
+                        1 + i * 4, j * 10 + 3);
             }
         }
     }
@@ -113,7 +113,9 @@ void map_draw_orders(char *map, taxi *t, order **orders, pthread_mutex_t **order
         if(snprintf(str, 2, "%d", t->current_order_id) < 0) {
             FORCE_EXIT("snprintf");
         }
-        map_set_char(map, 'B', 1 + orders[t->current_order_id]->end.x * 4, orders[t->current_order_id]->end.y * 10 + 2);
-        map_set_char(map, str[0], 1 + orders[t->current_order_id]->end.x * 4, orders[t->current_order_id]->end.y * 10 + 3);
+        map_set_char(map, 'B', 1 + orders[t->current_order_id]->end.x * 4, 
+                     orders[t->current_order_id]->end.y * 10 + 2);
+        map_set_char(map, str[0], 1 + orders[t->current_order_id]->end.x * 4, 
+                     orders[t->current_order_id]->end.y * 10 + 3);
     }
 }

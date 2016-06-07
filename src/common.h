@@ -22,11 +22,13 @@ typedef enum direction {
 
 typedef struct taxi {
     int id;
+    /* Set to -1 if taxi is not fulfiling any order */
     int current_order_id;
     int money;
+    /* Flag indicating that the taxi collided with another taxi */
     int collision;
     /* Set to non-zero value makes taxi stay for 1 move in the same place */
-    int stay; 
+    int stay;
     direction current_direction;
     direction next_direction;
     position position;
