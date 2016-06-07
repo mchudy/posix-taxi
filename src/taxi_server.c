@@ -217,5 +217,5 @@ int main(int argc, char **argv) {
     set_nonblock(socket_fd);
     server_work(socket_fd);
     safe_close(socket_fd);
-    pthread_exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

@@ -30,6 +30,7 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
     if(t->collision) {
         t->collision = 0;
         t->money -= COLLISION_COST;
+        t->next_direction = -1;
     } else if (t->stay) {
         t->stay = 0;
     } else {
@@ -56,8 +57,8 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
                 taxi_try_finish_order(t, orders, order_mutexes);   
             }
         }
+        t->next_direction = -1;
     }
-    t->next_direction = -1;
     if(pthread_mutex_unlock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_unlock");
     }

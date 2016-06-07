@@ -93,22 +93,26 @@ char map_get_direction_char(direction dir) {
 }
 
 void map_draw_orders(char *map, taxi *t, order **orders, pthread_mutex_t **order_mutexes) {
-    // order number character
-    char str[1];
+    // order number string (including \0)
+    char str[2];
     if(t->current_order_id == -1) {
         // showing all available start points
         int i;
         lock_orders(order_mutexes);
         for(i = 0; i < MAX_ORDERS; i++) {
             if(orders[i] == NULL || !orders[i]->available) continue;
+            if(snprintf(str, 2, "%d", orders[i]->id) < 0) {
+                FORCE_EXIT("snprintf");
+            }
             map_set_char(map, 'A', 1 + orders[i]->start.x * 4, orders[i]->start.y * 10 + 2);
-            sprintf(str, "%d", orders[i]->id);
             map_set_char(map, str[0], 1 + orders[i]->start.x * 4, orders[i]->start.y * 10 + 3);
         }
         unlock_orders(order_mutexes);
     } else {
         // showing only end point for the current order
-        sprintf(str, "%d", t->current_order_id);
+        if(snprintf(str, 2, "%d", t->current_order_id) < 0) {
+            FORCE_EXIT("snprintf");
+        }
         map_set_char(map, 'B', 1 + orders[t->current_order_id]->end.x * 4, orders[t->current_order_id]->end.y * 10 + 2);
         map_set_char(map, str[0], 1 + orders[t->current_order_id]->end.x * 4, orders[t->current_order_id]->end.y * 10 + 3);
     }
