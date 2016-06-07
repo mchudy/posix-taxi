@@ -51,14 +51,13 @@ void cleanup_orders(order *orders[MAX_ORDERS], pthread_mutex_t *order_mutexes[MA
             FORCE_EXIT("pthread_mutex_init");   
         }
         free(order_mutexes[i]);
-   }
+    }
 }
 
 void order_cancel(int id, order **orders, pthread_mutex_t **order_mutexes) {
     if(pthread_mutex_lock(order_mutexes[id]) != 0) {
         FORCE_EXIT("pthread_mutex_lock");
     }
-    LOG_DEBUG("Cancelling order %d", id);
     free(orders[id]);
     orders[id] = NULL;
     if(pthread_mutex_unlock(order_mutexes[id]) != 0) {

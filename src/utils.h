@@ -42,7 +42,7 @@
     exit(EXIT_FAILURE); \
 } while (0)
 
-#define MAX(a, b) (((a) > (b)) ? (a) : (b)) 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #define MAX_PORT 65535
 #define BACKLOG 3
@@ -65,7 +65,7 @@ ssize_t bulk_write(int fd, char *buf, size_t count);
 
 /* Signals */
 void set_handler(void (*f)(int), int signo);
- 
+
 /* Threads */
 pthread_t create_detached_thread(void* data, void*(*handler)(void*));
 
