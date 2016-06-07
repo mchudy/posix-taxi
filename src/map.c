@@ -93,6 +93,7 @@ char map_get_direction_char(direction dir) {
 }
 
 void map_draw_orders(char *map, taxi *t, order **orders, pthread_mutex_t **order_mutexes) {
+    // order number character
     char str[1];
     if(t->current_order_id == -1) {
         // showing all available start points
@@ -107,9 +108,8 @@ void map_draw_orders(char *map, taxi *t, order **orders, pthread_mutex_t **order
         unlock_orders(order_mutexes);
     } else {
         // showing only end point for the current order
-        order *current_order = orders[t->current_order_id];
-        sprintf(str, "%d", current_order->id);
-        map_set_char(map, 'B', 1 + current_order->end.x * 4, current_order->end.y * 10 + 2);
-        map_set_char(map, str[0], 1 + current_order->end.x * 4, current_order->end.y * 10 + 3);
+        sprintf(str, "%d", t->current_order_id);
+        map_set_char(map, 'B', 1 + orders[t->current_order_id]->end.x * 4, orders[t->current_order_id]->end.y * 10 + 2);
+        map_set_char(map, str[0], 1 + orders[t->current_order_id]->end.x * 4, orders[t->current_order_id]->end.y * 10 + 3);
     }
 }
