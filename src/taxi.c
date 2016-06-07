@@ -33,6 +33,9 @@ int taxi_move(taxi *t, taxi **taxis, pthread_mutex_t *mutex, order **orders,
         t->next_direction = -1;
     } else if (t->stay) {
         t->stay = 0;
+        if(t->current_order_id == -1) {
+            t->money += ORDER_FINISHED_MONEY;
+        }
     } else {
         taxi_handle_city_edges(t);
         taxi_update_direction(t);
@@ -200,7 +203,6 @@ void taxi_try_finish_order(taxi *t, order **orders, pthread_mutex_t **order_mute
     order *current_order = orders[t->current_order_id];
     if(position_equal(t->position, current_order->end)) {
         printf("Taxi %d finished order %d\n", t->id, t->current_order_id);
-        t->money += ORDER_FINISHED_MONEY;
         if(pthread_mutex_lock(order_mutexes[t->current_order_id]) != 0) {
             FORCE_EXIT("pthread_mutex_lock");
         }                
