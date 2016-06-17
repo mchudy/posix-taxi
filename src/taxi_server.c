@@ -49,7 +49,7 @@ void send_map(thread_data *data) {
 direction extract_direction(char *s, int len) {
     while(len-- > 0) {
         char c = toupper(s[len]);
-        if(c == 'P') {
+        if(c == 'R') {
             return RIGHT;
         } else if(c == 'L') {
             return LEFT;
