@@ -11,7 +11,7 @@ char* map_generate(taxi **taxis, taxi *current_taxi, pthread_mutex_t *mutex,
     }
     map_draw_orders(map, current_taxi, orders, order_mutexes);
     map_draw_taxis(map, taxis, current_taxi->id);
-    sprintf(map + (ROWS_COUNT - 1) * ROW_LENGTH, "%d zl\n", current_taxi->money);
+    sprintf(map + (ROWS_COUNT - 1) * ROW_LENGTH, "$%d\n", current_taxi->money);
     if(pthread_mutex_unlock(mutex) != 0) {
         FORCE_EXIT("pthread_mutex_unlock");
     }
