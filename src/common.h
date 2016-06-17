@@ -1,7 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define TAXI_STREET_TIME 10
+#define TAXI_STREET_TIME 1
 #define STREETS_COUNT 10
 #define ALLEYS_COUNT 10
 #define MAX_ORDERS 5
